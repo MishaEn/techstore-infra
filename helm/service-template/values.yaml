@@ -28,3 +28,7 @@ probes:
     path: /readyz
     initialDelaySeconds: 5
     periodSeconds: 5
+
+secret:
+  create: false
+  data: {}

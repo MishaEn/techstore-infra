@@ -2,3 +2,4 @@
 charts/
 values.local.yaml
 .DS_Store
+.idea
