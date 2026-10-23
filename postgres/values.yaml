@@ -1,0 +1,12 @@
+# values.yaml — минимальная конфигурация для локальной разработки
+auth:
+  postgresPassword: "dev-postgres-admin"   # Пароль администратора PostgreSQL
+  username: "techstore"                     # Бизнес-пользователь
+  password: "dev-techstore-pass"
+  database: "postgres"                      # База данных по умолчанию (не используется напрямую)
+
+primary:
+  resourcesPreset: "nano"                   # Минимальные ресурсы, подходит для локальной разработки
+  persistence:
+    enabled: true
+    size: 2Gi

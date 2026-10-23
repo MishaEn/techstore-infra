@@ -1,0 +1,38 @@
+name: Helm Chart CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  helm-lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Установка Helm (официальное действие)
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.16.4'
+
+      # 2. Helm Lint
+      - name: Run helm lint
+        run: helm lint helm/service-template
+
+      # 3. Проверка рендеринга шаблона (используем временные values)
+      - name: Run helm template (validate rendering)
+        run: |
+          cat > /tmp/test-values.yaml <<EOF
+          image:
+            repository: "nginx"
+            tag: "alpine"
+          env:
+            - name: TEST
+              value: "hello"
+          EOF
+          helm template test-release helm/service-template -f /tmp/test-values.yaml > /tmp/rendered.yaml
+          cat /tmp/rendered.yaml

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: service-template
+description: Универсальный шаблон Helm chart для сервисов TechStore
+version: 0.1.0
+appVersion: "1.0.0"
