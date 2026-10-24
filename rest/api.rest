@@ -3,7 +3,7 @@
 ### =====================================================================
 @host = http://localhost:8080
 @contentType = application/json
-@email = user213@example.com
+@email = user4234234@example.com
 @password = password
 
 ### =====================================================================
