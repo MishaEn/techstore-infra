@@ -1,0 +1,50 @@
+### Переменные окружения
+# Мы используем порт 8080, так как ты пробрасываешь Kong через kubectl port-forward
+@host = http://localhost:8080
+@contentType = application/json
+@email = phpstorm-test@example.com
+@password = password
+
+### 1. Health Check (Проверка жизни сервиса)
+# Публичный маршрут, проверяет, что Go-сервис отвечает
+GET {{host}}/healthz
+
+### 2. Регистрация нового пользователя
+# Публичный маршрут (Kong пропускает без токена)
+POST {{host}}/api/v1/users/register
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "full_name": "PhpStorm User"
+}
+
+### 3. Логин (Получение JWT токена)
+# Публичный маршрут.
+# ВАЖНО: После нажатия "Run", скопируйте access_token из ответа
+# и вставьте его в переменную @token ниже.
+POST {{host}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+    // Небольшой скрипт для PhpStorm: автоматически берет токен из ответа
+    // и сохраняет его в глобальную переменную клиента
+    client.global.set("auth_token", response.body.access_token);
+%}
+
+### 4. Получение профиля (Защищенный маршрут)
+# Если токен не передан или неверен, Kong вернет 401 Unauthorized.
+# Если токен верен, Kong проверит подпись и пропустит запрос в Go-сервис.
+GET {{host}}/api/v1/users/me
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI4Mjc5NDMsImlhdCI6MTc5MjgyNzA0MywiaXNzIjoidXNlci1zZXJ2aWNlLWtleSIsInN1YiI6ImVhMzU1ZDUwLTBlZmItNDc5Ny04ODRmLWEwNTJjMmQ2M2QzNiJ9.SO9WWb8TQ30L5as0M074JMUHCrrerLftZqESSIvQdKsV-o5BvFMCrQfoQuMTUf6ImFX-D5ToKyEDLrDQaw5aE4vKrg060_jFz_-Bc13HwWYILjP4vHIYZJeDQHodZ5ifpS94OTJOVr7nKhMP3HfdN7834mutVDdzh2PTFD-QjBiN4LUEKbnUqNdI_evJRI0CDAaaUoGP4w2LbNWZBf3ByVFhzGiLKJXMs5fnAl4zGKXAGeK0EHi0YbcK0PNnpY6pBsRoD8fws88C-rmrPosAjBDxgjXjy6UZ8RXeVuBrhgjctZdDmbnJ3d6mFOHj5dToWEWXVP-YhcwijElJMDjlZA
+
+### 5. Попытка получить профиль с неверным токеном (Тест безопасности)
+# Ожидаемый ответ: 401 Unauthorized от Kong
+GET {{host}}/api/v1/users/me
+Authorization: Bearer invalid_token_here
