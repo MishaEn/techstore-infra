@@ -27,6 +27,17 @@ services:
         paths:
           - /api/v1/products
         strip_path: false
+  - name: order-service
+    url: http://order-service.techstore.svc.cluster.local:8080
+    routes:
+      - name: order-routes
+        paths:
+          - /api/v1/orders
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              header_names: [ "Authorization" ]
 consumers:
   - username: user-service-client
     jwt_secrets:
