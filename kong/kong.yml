@@ -1,0 +1,44 @@
+_format_version: "3.0"
+
+services:
+  - name: user-service
+    url: http://user-service.techstore.svc.cluster.local:8080
+    routes:
+      - name: public-routes
+        paths:
+          - /api/v1/users/register
+          - /api/v1/auth/login
+        strip_path: false
+      - name: protected-routes
+        paths:
+          - /api/v1/users/me
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              uri_param_names: []
+              cookie_names: []
+              header_names: ["Authorization"]
+              claims_to_verify: ["exp"]
+  - name: catalog-service
+    url: http://catalog-service.techstore.svc.cluster.local:8080
+    routes:
+      - name: catalog-routes
+        paths:
+          - /api/v1/products
+        strip_path: false
+consumers:
+  - username: user-service-client
+    jwt_secrets:
+      - key: "user-service-key"
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgtzdd4XQ98zZHAYIC0ra
+          8BwfxS8fUs6DHgxVgiKPoYxod3LQqd0wujn3VEmampAfceptLjI5ySs22t+5TJna
+          htfYg9SLBhaD/KTPKP1gAz3yuMVsSeCjrXZWnVrp01rht+dd0zyEcU9OQQXQrHXB
+          qtGrhzEAEuHs4y+Um8G3xKy1H9qPw7Fuf2R0BiisPHB117g1AZbaZGaD5aByBpl1
+          qalCwd5SfRvxIR+Z7ejrTuQOmF49EufZ1nhfFB40cYaqa8RB0MXYQ21fa7Y02Fgh
+          ZFc9EQGgA1BXgws+MdJW8TuWRjnawpz31fVrDIoemsoIuGLcoktP9AV6TPaCtqHR
+          3wIDAQAB
+          -----END PUBLIC KEY-----

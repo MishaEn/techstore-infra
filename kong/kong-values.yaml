@@ -1,0 +1,11 @@
+ingressController:
+  enabled: false
+
+env:
+  database: "off"
+
+dblessConfig:
+  configMap: kong-declarative-config
+
+proxy:
+  type: NodePort
