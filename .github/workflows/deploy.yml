@@ -3,14 +3,34 @@ name: E2E Deploy & Test
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # Позволяет запускать пайплайн вручную
+  workflow_dispatch:
 
 jobs:
   deploy-in-kind:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Infra
         uses: actions/checkout@v4
+        with:
+          path: techstore-infra
+
+      - name: Checkout User Service
+        uses: actions/checkout@v4
+        with:
+          repository: MishaEn/techstore-user-service
+          path: techstore-user-service
+
+      - name: Checkout Catalog Service
+        uses: actions/checkout@v4
+        with:
+          repository: MishaEn/techstore-catalog-service
+          path: techstore-catalog-service
+
+      - name: Checkout Order Service
+        uses: actions/checkout@v4
+        with:
+          repository: MishaEn/techstore-order-service
+          path: techstore-order-service
 
       - name: Create Kind Cluster
         uses: helm/kind-action@v1.10.0
@@ -24,45 +44,46 @@ jobs:
 
       - name: Install Infrastructure (Postgres & Kong)
         run: |
-          # Создаем namespace
           kubectl create namespace techstore
           
-          # Устанавливаем Postgres (используем упрощенный чарт для CI)
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql -n techstore --set auth.postgresPassword=dev-postgres-admin --set auth.username=techstore --set auth.password=dev-techstore-pass --set primary.resourcesPreset=nano
+          # Устанавливаем Postgres
+          helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql -n techstore \
+            --set auth.postgresPassword=dev-postgres-admin \
+            --set auth.username=techstore \
+            --set auth.password=dev-techstore-pass \
+            --set primary.resourcesPreset=nano
           
-          # Ждем Postgres
           kubectl rollout status statefulset/postgres-postgresql -n techstore --timeout=180s
 
       - name: Create Databases
         run: |
-          export PGPASSWORD=dev-postgres-admin
-          kubectl exec -n techstore postgres-postgresql-0 -- psql -U postgres -c "CREATE DATABASE users OWNER techstore;"
-          kubectl exec -n techstore postgres-postgresql-0 -- psql -U postgres -c "CREATE DATABASE catalog OWNER techstore;"
-          kubectl exec -n techstore postgres-postgresql-0 -- psql -U postgres -c "CREATE DATABASE orders OWNER techstore;"
+          kubectl exec -n techstore postgres-postgresql-0 -- env PGPASSWORD=dev-postgres-admin psql -U postgres -c "CREATE DATABASE users OWNER techstore;"
+          kubectl exec -n techstore postgres-postgresql-0 -- env PGPASSWORD=dev-postgres-admin psql -U postgres -c "CREATE DATABASE catalog OWNER techstore;"
+          kubectl exec -n techstore postgres-postgresql-0 -- env PGPASSWORD=dev-postgres-admin psql -U postgres -c "CREATE DATABASE orders OWNER techstore;"
 
-      # (Опционально) Установка Kong
       - name: Install Kong
         run: |
           helm repo add kong https://charts.konghq.com
-          helm install kong kong/kong -n techstore -f kong/kong-values.yaml
+          helm install kong kong/kong -n techstore -f techstore-infra/kong/kong-values.yaml
 
-      # Деплой сервисов
+      - name: Build Services
+        run: |
+          cd techstore-user-service && docker build -t user-service:0.1.0 .
+          cd ../techstore-catalog-service && docker build -t catalog-service:0.1.0 .
+          cd ../techstore-order-service && docker build -t order-service:0.1.0 .
+          cd ..
+
+      - name: Load Images to Kind
+        run: |
+          kind load docker-image user-service:0.1.0 --name techstore
+          kind load docker-image catalog-service:0.1.0 --name techstore
+          kind load docker-image order-service:0.1.0 --name techstore
+
       - name: Deploy Services
         run: |
-          # Внимание: В реальном проекте здесь нужно скачать образы из ghcr.io,
-          # но так как это CI, мы просто собираем их локально
-          cd ../techstore-user-service && docker build -t user-service:0.1.0 .
-          cd ../techstore-order-service && docker build -t order-service:0.1.0 .
-          cd ../techstore-catalog-service && docker build -t catalog-service:0.1.0 .
-          
-          kind load docker-image user-service:0.1.0 --name techstore
-          kind load docker-image order-service:0.1.0 --name techstore
-          kind load docker-image catalog-service:0.1.0 --name techstore
-          
-          helm upgrade --install user-service helm/service-template -f ../techstore-user-service/deploy/values.yaml -n techstore
-          helm upgrade --install catalog-service helm/service-template -f ../techstore-catalog-service/deploy/values.yaml -n techstore
-          helm upgrade --install order-service helm/service-template -f ../techstore-order-service/deploy/values.yaml -n techstore
+          helm upgrade --install user-service techstore-infra/helm/service-template -f techstore-user-service/deploy/values.yaml -n techstore
+          helm upgrade --install catalog-service techstore-infra/helm/service-template -f techstore-catalog-service/deploy/values.yaml -n techstore
+          helm upgrade --install order-service techstore-infra/helm/service-template -f techstore-order-service/deploy/values.yaml -n techstore
 
       - name: Verify Pods
         run: kubectl get pods -n techstore
