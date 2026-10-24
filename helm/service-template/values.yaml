@@ -29,6 +29,12 @@ probes:
     initialDelaySeconds: 5
     periodSeconds: 5
 
+migrations:
+  enabled: false
+  image: ""          # Если пусто, берется основной image сервиса
+  command: []        # Команда для запуска миграций
+  env: []            # Дополнительные переменные (если нужны)
+
 secret:
   create: false
   data: {}
